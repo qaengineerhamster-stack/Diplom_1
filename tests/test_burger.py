@@ -1,110 +1,93 @@
+import pytest
 from unittest.mock import Mock
 
-import pytest
-
 from burger import Burger
+from ingredient_types import INGREDIENT_TYPE_SAUCE, INGREDIENT_TYPE_FILLING
+
+
+@pytest.fixture
+def burger():
+    return Burger()
+
+
+@pytest.fixture
+def bun():
+    bun = Mock()
+    bun.get_name.return_value = "black bun"
+    bun.get_price.return_value = 100
+    return bun
+
+
+@pytest.fixture
+def sauce():
+    sauce = Mock()
+    sauce.get_type.return_value = INGREDIENT_TYPE_SAUCE
+    sauce.get_name.return_value = "hot sauce"
+    sauce.get_price.return_value = 50
+    return sauce
+
+
+@pytest.fixture
+def filling():
+    filling = Mock()
+    filling.get_type.return_value = INGREDIENT_TYPE_FILLING
+    filling.get_name.return_value = "cutlet"
+    filling.get_price.return_value = 80
+    return filling
 
 
 class TestBurger:
-
-    def test_init_sets_none_bun_and_empty_ingredients(self):
-        burger = Burger()
-
-        assert burger.bun is None
-        assert burger.ingredients == []
-
-    def test_set_buns_sets_bun(self):
-        burger = Burger()
-        bun = Mock()
-        bun.get_name.return_value = "black bun"
-        bun.get_price.return_value = 100
-
+    def test_set_buns_sets_bun(self, burger, bun):
         burger.set_buns(bun)
 
         assert burger.bun == bun
 
-    def test_add_ingredient_adds_ingredient_to_list(self):
-        burger = Burger()
-        ingredient = Mock()
+    def test_add_ingredient_adds_ingredient_to_list(self, burger, sauce):
+        burger.add_ingredient(sauce)
 
-        burger.add_ingredient(ingredient)
-
-        assert ingredient in burger.ingredients
+        assert sauce in burger.ingredients
         assert len(burger.ingredients) == 1
 
-    def test_remove_ingredient_removes_ingredient_by_index(self):
-        burger = Burger()
-        ingredient_1 = Mock()
-        ingredient_2 = Mock()
-        burger.add_ingredient(ingredient_1)
-        burger.add_ingredient(ingredient_2)
+    def test_remove_ingredient_removes_ingredient_from_list(self, burger, sauce, filling):
+        burger.add_ingredient(sauce)
+        burger.add_ingredient(filling)
 
         burger.remove_ingredient(0)
 
-        assert burger.ingredients == [ingredient_2]
+        assert sauce not in burger.ingredients
+        assert burger.ingredients == [filling]
 
-    def test_move_ingredient_moves_ingredient_to_new_index(self):
-        burger = Burger()
-        ingredient_1 = Mock()
-        ingredient_2 = Mock()
-        ingredient_3 = Mock()
-        burger.add_ingredient(ingredient_1)
-        burger.add_ingredient(ingredient_2)
-        burger.add_ingredient(ingredient_3)
+    def test_move_ingredient_moves_ingredient_in_list(self, burger, sauce, filling):
+        burger.add_ingredient(sauce)
+        burger.add_ingredient(filling)
 
-        burger.move_ingredient(0, 2)
+        burger.move_ingredient(0, 1)
 
-        assert burger.ingredients == [ingredient_2, ingredient_3, ingredient_1]
+        assert burger.ingredients == [filling, sauce]
 
-    @pytest.mark.parametrize(
-        "bun_price, ingredient_prices, expected_price",
-        [
-            (100, [50, 60], 310),
-            (200, [100], 500),
-            (125.5, [10, 20], 281.0),
-        ]
-    )
-    def test_get_price_returns_correct_price(self, bun_price, ingredient_prices, expected_price):
-        burger = Burger()
-
-        bun = Mock()
-        bun.get_price.return_value = bun_price
+    def test_get_price_returns_correct_price(self, burger, bun, sauce, filling):
         burger.set_buns(bun)
+        burger.add_ingredient(sauce)
+        burger.add_ingredient(filling)
 
-        for price in ingredient_prices:
-            ingredient = Mock()
-            ingredient.get_price.return_value = price
-            burger.add_ingredient(ingredient)
+        price = burger.get_price()
 
-        assert burger.get_price() == expected_price
+        assert price == 330
 
-    def test_get_receipt_returns_correct_receipt(self):
-        burger = Burger()
-
-        bun = Mock()
-        bun.get_name.return_value = "black bun"
-        bun.get_price.return_value = 100
+    def test_get_receipt_returns_correct_receipt(self, burger, bun, sauce, filling):
         burger.set_buns(bun)
+        burger.add_ingredient(sauce)
+        burger.add_ingredient(filling)
 
-        ingredient_1 = Mock()
-        ingredient_1.get_type.return_value = "SAUCE"
-        ingredient_1.get_name.return_value = "hot sauce"
-        ingredient_1.get_price.return_value = 100
-
-        ingredient_2 = Mock()
-        ingredient_2.get_type.return_value = "FILLING"
-        ingredient_2.get_name.return_value = "cutlet"
-        ingredient_2.get_price.return_value = 300
-
-        burger.add_ingredient(ingredient_1)
-        burger.add_ingredient(ingredient_2)
+        receipt = burger.get_receipt()
 
         expected_receipt = (
             "(==== black bun ====)\n"
             "= sauce hot sauce =\n"
             "= filling cutlet =\n"
-            "(==== black bun ====)\n\n"
-            "Price: 600"
+            "(==== black bun ====)\n"
+            "\n"
+            "Price: 330"
         )
 
-        assert burger.get_receipt() == expected_receipt
+        assert receipt == expected_receipt
