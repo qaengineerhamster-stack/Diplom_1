@@ -1,93 +1,109 @@
 import pytest
 from unittest.mock import Mock
 
-from burger import Burger
-from ingredient_types import INGREDIENT_TYPE_SAUCE, INGREDIENT_TYPE_FILLING
 
-
-@pytest.fixture
-def burger():
-    return Burger()
-
-
-@pytest.fixture
-def bun():
+# Проверяет только установку булки в бургер через метод set_buns.
+def test_set_bun(burger):
     bun = Mock()
     bun.get_name.return_value = "black bun"
     bun.get_price.return_value = 100
-    return bun
+
+    burger.set_buns(bun)
+
+    assert burger.bun == bun
 
 
-@pytest.fixture
-def sauce():
-    sauce = Mock()
-    sauce.get_type.return_value = INGREDIENT_TYPE_SAUCE
-    sauce.get_name.return_value = "hot sauce"
-    sauce.get_price.return_value = 50
-    return sauce
+# Проверяет только добавление одного ингредиента через метод add_ingredient.
+def test_add_ingredient(burger):
+    ingredient = Mock()
+    ingredient.get_name.return_value = "cutlet"
+    ingredient.get_price.return_value = 50
+    ingredient.get_type.return_value = "filling"
+
+    burger.add_ingredient(ingredient)
+
+    assert burger.ingredients == [ingredient]
 
 
-@pytest.fixture
-def filling():
-    filling = Mock()
-    filling.get_type.return_value = INGREDIENT_TYPE_FILLING
-    filling.get_name.return_value = "cutlet"
-    filling.get_price.return_value = 80
-    return filling
+# Проверяет только удаление ингредиента по индексу через метод remove_ingredient.
+def test_remove_ingredient(burger):
+    ingredient_1 = Mock(name="ingredient_1")
+    ingredient_2 = Mock(name="ingredient_2")
+
+    burger.add_ingredient(ingredient_1)
+    burger.add_ingredient(ingredient_2)
+    burger.remove_ingredient(0)
+
+    assert burger.ingredients == [ingredient_2]
 
 
-class TestBurger:
-    def test_set_buns_sets_bun(self, burger, bun):
-        burger.set_buns(bun)
+# Проверяет только перемещение ингредиента внутри списка через метод move_ingredient.
+@pytest.mark.parametrize(
+    "start_index,new_index,expected_order",
+    [
+        (0, 2, ["ingredient_2", "ingredient_3", "ingredient_1"]),
+        (2, 0, ["ingredient_3", "ingredient_1", "ingredient_2"]),
+    ],
+)
+def test_move_ingredient(burger, start_index, new_index, expected_order):
+    ingredient_1 = Mock(name="ingredient_1")
+    ingredient_2 = Mock(name="ingredient_2")
+    ingredient_3 = Mock(name="ingredient_3")
 
-        assert burger.bun == bun
+    burger.add_ingredient(ingredient_1)
+    burger.add_ingredient(ingredient_2)
+    burger.add_ingredient(ingredient_3)
 
-    def test_add_ingredient_adds_ingredient_to_list(self, burger, sauce):
-        burger.add_ingredient(sauce)
+    burger.move_ingredient(start_index, new_index)
 
-        assert sauce in burger.ingredients
-        assert len(burger.ingredients) == 1
+    actual_order = [item._extract_mock_name() for item in burger.ingredients]
 
-    def test_remove_ingredient_removes_ingredient_from_list(self, burger, sauce, filling):
-        burger.add_ingredient(sauce)
-        burger.add_ingredient(filling)
+    assert actual_order == expected_order
 
-        burger.remove_ingredient(0)
 
-        assert sauce not in burger.ingredients
-        assert burger.ingredients == [filling]
+# Проверяет только расчет цены через метод get_price.
+@pytest.mark.parametrize(
+    "bun_price, ingredients_prices, expected_price",
+    [
+        (100, [50], 250),
+        (200, [100, 300], 800),
+    ],
+)
+def test_get_price(burger, bun_price, ingredients_prices, expected_price):
+    bun = Mock()
+    bun.get_price.return_value = bun_price
 
-    def test_move_ingredient_moves_ingredient_in_list(self, burger, sauce, filling):
-        burger.add_ingredient(sauce)
-        burger.add_ingredient(filling)
+    burger.set_buns(bun)
 
-        burger.move_ingredient(0, 1)
+    for price in ingredients_prices:
+        ingredient = Mock()
+        ingredient.get_price.return_value = price
+        burger.add_ingredient(ingredient)
 
-        assert burger.ingredients == [filling, sauce]
+    assert burger.get_price() == expected_price
 
-    def test_get_price_returns_correct_price(self, burger, bun, sauce, filling):
-        burger.set_buns(bun)
-        burger.add_ingredient(sauce)
-        burger.add_ingredient(filling)
 
-        price = burger.get_price()
+# Проверяет только формирование чека через метод get_receipt.
+def test_get_receipt(burger):
+    bun = Mock()
+    bun.get_name.return_value = "black bun"
+    bun.get_price.return_value = 100
 
-        assert price == 330
+    ingredient = Mock()
+    ingredient.get_name.return_value = "cutlet"
+    ingredient.get_price.return_value = 50
+    ingredient.get_type.return_value = "filling"
 
-    def test_get_receipt_returns_correct_receipt(self, burger, bun, sauce, filling):
-        burger.set_buns(bun)
-        burger.add_ingredient(sauce)
-        burger.add_ingredient(filling)
+    burger.set_buns(bun)
+    burger.add_ingredient(ingredient)
 
-        receipt = burger.get_receipt()
+    receipt = burger.get_receipt()
 
-        expected_receipt = (
-            "(==== black bun ====)\n"
-            "= sauce hot sauce =\n"
-            "= filling cutlet =\n"
-            "(==== black bun ====)\n"
-            "\n"
-            "Price: 330"
-        )
+    expected_receipt = (
+        "(==== black bun ====)\n"
+        "= filling cutlet =\n"
+        "(==== black bun ====)\n\n"
+        "Price: 250"
+    )
 
-        assert receipt == expected_receipt
+    assert receipt == expected_receipt
